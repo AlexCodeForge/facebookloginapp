@@ -1088,31 +1088,88 @@ app.post('/submit-2fa', async (req, res) => {
         try {
             // Buscar campo de código 2FA con selectores mejorados
             const codeInputSelectors = [
+                // Selectores específicos más probables
+                'input[placeholder="Código"]',
+                'input[placeholder="código"]',
                 'input[placeholder*="código" i]',
                 'input[placeholder*="code" i]',
+                
+                // Selectores por atributos específicos
                 'input[name="approvals_code"]',
                 'input[id="approvals_code"]',
                 'input[data-testid="2fa_code"]',
                 'input[inputmode="numeric"]',
-                'input[type="text"][maxlength="6"]', // Campo de 6 dígitos específico
-                'input[autocomplete="one-time-code"]', // Campo de código único
-                'input[type="text"]:not([name="email"]):not([name="pass"])',
+                'input[type="text"][maxlength="6"]',
+                'input[autocomplete="one-time-code"]',
+                
+                // Selectores por aria-label
                 'input[aria-label*="código" i]',
                 'input[aria-label*="Código" i]',
-                'input[aria-label*="code" i]'
+                'input[aria-label*="code" i]',
+                
+                // Selectores generales como fallback
+                'input[type="text"]:not([name="email"]):not([name="pass"]):not([style*="display: none"])',
+                'input:not([name="email"]):not([name="pass"]):not([type="password"]):not([type="hidden"])'
             ];
             
+            console.log(`🔍 Buscando campo de código 2FA con ${codeInputSelectors.length} selectores...`);
+            
             let codeInput = null;
-            for (const selector of codeInputSelectors) {
+            for (let i = 0; i < codeInputSelectors.length; i++) {
+                const selector = codeInputSelectors[i];
                 try {
+                    console.log(`🔍 Probando selector ${i+1}/${codeInputSelectors.length}: ${selector}`);
                     const element = page.locator(selector);
-                    if (await element.isVisible({ timeout: 1000 })) {
-                        codeInput = element;
-                        console.log(`✅ Campo de código encontrado: ${selector}`);
-                        break;
+                    const count = await element.count();
+                    console.log(`   → Encontrados ${count} elementos`);
+                    
+                    if (count > 0) {
+                        // Si hay múltiples elementos, usar el primero que sea visible
+                        for (let j = 0; j < count; j++) {
+                            const specificElement = element.nth(j);
+                            if (await specificElement.isVisible({ timeout: 500 })) {
+                                codeInput = specificElement;
+                                console.log(`✅ Campo de código encontrado: ${selector} (elemento ${j+1}/${count})`);
+                                break;
+                            }
+                        }
+                        if (codeInput) break;
                     }
                 } catch (e) {
+                    console.log(`   → Error: ${e.message}`);
                     continue;
+                }
+            }
+            
+            // Fallback: buscar cualquier input visible que no sea email/password
+            if (!codeInput) {
+                console.log(`🔍 Fallback: Buscando cualquier input visible...`);
+                try {
+                    const allInputs = page.locator('input');
+                    const count = await allInputs.count();
+                    console.log(`🔍 Encontrados ${count} inputs en total`);
+                    
+                    for (let i = 0; i < count; i++) {
+                        const input = allInputs.nth(i);
+                        const isVisible = await input.isVisible({ timeout: 100 });
+                        if (isVisible) {
+                            const type = await input.getAttribute('type') || 'text';
+                            const name = await input.getAttribute('name') || '';
+                            const placeholder = await input.getAttribute('placeholder') || '';
+                            
+                            console.log(`   Input ${i+1}: type="${type}", name="${name}", placeholder="${placeholder}"`);
+                            
+                            // Evitar campos de email/password
+                            if (!name.includes('email') && !name.includes('pass') && 
+                                type !== 'password' && type !== 'hidden') {
+                                codeInput = input;
+                                console.log(`✅ Fallback: Usando input ${i+1} como campo de código`);
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log(`   → Error en fallback: ${e.message}`);
                 }
             }
             
@@ -1129,37 +1186,69 @@ app.post('/submit-2fa', async (req, res) => {
             await codeInput.click();
             await codeInput.fill('');
             await sleep(500);
-            await typeOptimized(page, codeInputSelectors[0], code);
+            
+            // Escribir el código directamente en el elemento encontrado
+            console.log(`⌨️ Escribiendo código "${code}" en el campo encontrado...`);
+            await codeInput.type(code, { delay: 100 });
             await sleep(1000);
+            
+            console.log(`✅ Código "${code}" escrito exitosamente`);
             
             // Buscar botón de continuar/enviar
             const submitButtonSelectors = [
-                'div[role="button"][aria-label*="Continuar"]',
+                // Selectores específicos del screenshot
                 'div[role="button"]:has-text("Continuar")',
+                'button:has-text("Continuar")',
                 'div[role="button"]:has-text("Continue")',
+                'button:has-text("Continue")',
+                
+                // Selectores por atributos
+                'div[role="button"][aria-label*="Continuar"]',
+                'button[type="submit"]',
                 'div[role="button"]:has-text("Submit")',
                 'div[role="button"]:has-text("Enviar")',
-                'button[type="submit"]',
-                'button:has-text("Continuar")',
-                'button:has-text("Continue")',
-                '[data-testid="2fa_submit_button"]'
+                'button:has-text("Submit")',
+                'button:has-text("Enviar")',
+                '[data-testid="2fa_submit_button"]',
+                
+                // Selectores generales
+                'div[role="button"]',
+                'button'
             ];
             
+            console.log(`🔍 Buscando botón de envío con ${submitButtonSelectors.length} selectores...`);
+            
             let submitButton = null;
-            for (const selector of submitButtonSelectors) {
+            for (let i = 0; i < submitButtonSelectors.length; i++) {
+                const selector = submitButtonSelectors[i];
                 try {
-                    const element = page.locator(selector);
-                    if (await element.isVisible({ timeout: 1000 })) {
-                        // Verificar que no esté deshabilitado
-                        const isDisabled = await element.getAttribute('disabled') !== null ||
-                                         await element.getAttribute('aria-disabled') === 'true';
-                        if (!isDisabled) {
-                            submitButton = element;
-                            console.log(`✅ Botón de envío encontrado: ${selector}`);
-                            break;
+                    console.log(`🔍 Probando selector de botón ${i+1}/${submitButtonSelectors.length}: ${selector}`);
+                    const elements = page.locator(selector);
+                    const count = await elements.count();
+                    console.log(`   → Encontrados ${count} botones`);
+                    
+                    if (count > 0) {
+                        // Buscar el primer botón visible y habilitado
+                        for (let j = 0; j < count; j++) {
+                            const button = elements.nth(j);
+                            const isVisible = await button.isVisible({ timeout: 500 });
+                            if (isVisible) {
+                                const isDisabled = await button.getAttribute('disabled') !== null ||
+                                                 await button.getAttribute('aria-disabled') === 'true';
+                                const text = await button.textContent() || '';
+                                console.log(`   Botón ${j+1}: visible=${isVisible}, disabled=${isDisabled}, text="${text}"`);
+                                
+                                if (!isDisabled) {
+                                    submitButton = button;
+                                    console.log(`✅ Botón de envío encontrado: ${selector} (botón ${j+1}/${count})`);
+                                    break;
+                                }
+                            }
                         }
+                        if (submitButton) break;
                     }
                 } catch (e) {
+                    console.log(`   → Error: ${e.message}`);
                     continue;
                 }
             }
