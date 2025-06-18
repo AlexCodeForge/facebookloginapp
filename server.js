@@ -158,7 +158,7 @@ async function createPersistentContext(email, version = 'mobile') {
  * @returns {Object} - Resultado del login
  */
 async function attemptLoginWithVersion(email, password, version, quickLogin = false) {
-    const sessionId = `${quickLogin ? 'quick-' : ''}${email}-${version}-${Date.now()}`;
+    const sessionId = `${quickLogin ? 'quick-' : ''}${email.replace(/[@.]/g, '_')}-${version}-${Date.now()}`;
     
     try {
         console.log(`🚀 Intentando login ${version} ${quickLogin ? '(rápido)' : '(completo)'} para ${email}...`);
@@ -429,7 +429,13 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
             await createDebugSnapshot(activeSessions[sessionId].page, `error-${version}`, DEBUG_DIR);
         }
         
-        // Limpiar sesión en caso de error
+        // NO limpiar sesión si es un error de 2FA - necesitamos mantenerla viva
+        if (error.message.startsWith('2FA_REQUIRED:')) {
+            console.log(`🔐 Error 2FA detectado - manteniendo sesión ${sessionId} activa`);
+            throw error; // Re-throw para que sea manejado por performFacebookLoginPersistent
+        }
+        
+        // Limpiar sesión SOLO en caso de error real (no 2FA)
         if (activeSessions[sessionId]) {
             if (activeSessions[sessionId].browser) {
                 await activeSessions[sessionId].browser.close();
@@ -466,7 +472,9 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
             
             // Verificar si es un error específico de 2FA
             if (error.message.startsWith('2FA_REQUIRED:')) {
-                const [, sessionId, version] = error.message.split(':');
+                const parts = error.message.split(':');
+                const sessionId = parts[1];
+                const version = parts[2];
                 console.log(`🔐 2FA detectado para móvil - sessionId: ${sessionId}, version: ${version}`);
                 return {
                     success: false,
@@ -505,7 +513,9 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
             
             // Verificar si es un error específico de 2FA
             if (error.message.startsWith('2FA_REQUIRED:')) {
-                const [, sessionId, version] = error.message.split(':');
+                const parts = error.message.split(':');
+                const sessionId = parts[1];
+                const version = parts[2];
                 console.log(`🔐 2FA detectado para desktop - sessionId: ${sessionId}, version: ${version}`);
                 return {
                     success: false,
@@ -548,7 +558,9 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
         
         // Verificar si es un error específico de 2FA
         if (error.message.startsWith('2FA_REQUIRED:')) {
-            const [, sessionId, version] = error.message.split(':');
+            const parts = error.message.split(':');
+            const sessionId = parts[1];
+            const version = parts[2];
             console.log(`🔐 2FA detectado en auto-móvil - sessionId: ${sessionId}, version: ${version}`);
             return {
                 success: false,
@@ -588,7 +600,9 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
         
         // Verificar si es un error específico de 2FA
         if (error.message.startsWith('2FA_REQUIRED:')) {
-            const [, sessionId, version] = error.message.split(':');
+            const parts = error.message.split(':');
+            const sessionId = parts[1];
+            const version = parts[2];
             console.log(`🔐 2FA detectado en auto-desktop - sessionId: ${sessionId}, version: ${version}`);
             return {
                 success: false,
@@ -747,8 +761,10 @@ app.post('/login', async (req, res) => {
     
     try {
         const result = await performFacebookLoginPersistent(email, password, version);
+        console.log(`📋 Resultado del login:`, result);
         
         if (result.success) {
+            console.log(`✅ Login exitoso - enviando respuesta success`);
             return res.json({
                 success: true,
                 sessionId: result.sessionId,
@@ -759,6 +775,7 @@ app.post('/login', async (req, res) => {
             });
         }
         
+        console.log(`❌ Login falló - enviando respuesta 401 con requires2FA: ${result.requires2FA}`);
         return res.status(401).json({
             success: false,
             sessionId: result.sessionId,
@@ -770,7 +787,8 @@ app.post('/login', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Error en ruta de login:', error);
+        console.error('❌ Error CAPTURADO en ruta de login:', error.message);
+        console.error('📊 Stack trace:', error.stack);
         return res.status(500).json({
             error: 'Error interno del servidor: ' + error.message
         });
