@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Facebook Login Automation - Cookies Persistentes</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        width: 100%;
+        max-width: 600px;
+        text-align: center;
+      }
+
+      .logo {
+        font-size: 2.5em;
+        color: #4267b2;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 1.1em;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+      }
+
+      input[type="email"],
+      input[type="password"],
+      input[type="text"],
+      select {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e1e8ed;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        background: white;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 15px center;
+        background-size: 20px;
+        cursor: pointer;
+      }
+
+      input[type="email"]:focus,
+      input[type="password"]:focus,
+      input[type="text"]:focus,
+      select:focus {
+        outline: none;
+        border-color: #4267b2;
+        box-shadow: 0 0 0 3px rgba(66, 103, 178, 0.1);
+      }
+
+      select option {
+        padding: 10px;
+        font-size: 16px;
+      }
+
+      .login-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(45deg, #4267b2, #365899);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+      }
+
+      .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(66, 103, 178, 0.3);
+      }
+
+      .login-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .quick-login-section {
+        background: #e8f5e8;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 2px solid #4caf50;
+      }
+
+      .quick-login-section h3 {
+        color: #2e7d32;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .quick-login-section p {
+        color: #666;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .quick-login-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(45deg, #4caf50, #45a049);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+      }
+
+      .quick-login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+      }
+
+      .quick-login-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .normal-login-section {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        border: 2px solid #4267b2;
+      }
+
+      .normal-login-section h3 {
+        color: #4267b2;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .normal-login-section p {
+        color: #666;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .divider {
+        text-align: center;
+        margin: 20px 0;
+        position: relative;
+      }
+
+      .divider::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #ddd;
+      }
+
+      .divider span {
+        background: white;
+        padding: 0 15px;
+        color: #666;
+        font-weight: bold;
+        position: relative;
+        z-index: 1;
+      }
+
+      .secondary-btn {
+        width: 48%;
+        padding: 12px;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin: 5px 1%;
+      }
+
+      .secondary-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+      }
+
+      .danger-btn {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+      }
+
+      .danger-btn:hover {
+        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+      }
+
+      .status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 10px;
+        display: none;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      .status.warning {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+
+      .loading {
+        display: none;
+        margin-top: 20px;
+      }
+
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #4267b2;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .features {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 30px 0;
+        text-align: left;
+      }
+
+      .features h3 {
+        color: #4267b2;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .features ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .features li {
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .features li:last-child {
+        border-bottom: none;
+      }
+
+      .features li:before {
+        content: "✅ ";
+        margin-right: 10px;
+      }
+
+      .sessions-panel {
+        background: #e9ecef;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: left;
+        display: none;
+      }
+
+      .sessions-panel h3 {
+        color: #495057;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .session-item {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border-left: 4px solid #4267b2;
+      }
+
+      .session-email {
+        font-weight: bold;
+        color: #4267b2;
+        margin-bottom: 5px;
+      }
+
+      .session-info {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .session-actions {
+        text-align: right;
+      }
+
+      .close-session-btn {
+        padding: 8px 15px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .close-session-btn:hover {
+        background: #c82333;
+      }
+
+      .cookies-panel {
+        background: #fff8e1;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: left;
+        display: none;
+      }
+
+      .cookies-panel h3 {
+        color: #f57c00;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .cookie-item {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border-left: 4px solid #ff9800;
+        position: relative;
+      }
+
+      .cookie-email {
+        font-weight: bold;
+        color: #f57c00;
+        margin-bottom: 5px;
+        font-size: 1.1em;
+      }
+
+      .cookie-info {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .cookie-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #f5f5f5;
+      }
+
+      .cookie-age {
+        font-size: 0.8em;
+        color: #999;
+      }
+
+      .cookie-size {
+        font-size: 0.8em;
+        color: #666;
+        background: #f5f5f5;
+        padding: 2px 8px;
+        border-radius: 12px;
+      }
+
+      .delete-cookie-btn {
+        padding: 6px 12px;
+        background: #ff5722;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .delete-cookie-btn:hover {
+        background: #d84315;
+        transform: translateY(-1px);
+      }
+
+      .cookie-fresh {
+        border-left-color: #4caf50;
+      }
+
+      .cookie-old {
+        border-left-color: #ff5722;
+        opacity: 0.8;
+      }
+
+      .cache-panel {
+        background: #e8f5e8;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: left;
+        display: none;
+      }
+
+      .cache-panel h3 {
+        color: #2e7d32;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .cache-item {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border-left: 4px solid #4caf50;
+        position: relative;
+      }
+
+      .cache-email {
+        font-weight: bold;
+        color: #2e7d32;
+        margin-bottom: 5px;
+        font-size: 1.1em;
+      }
+
+      .cache-info {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .cache-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #f5f5f5;
+      }
+
+      .cache-size {
+        font-size: 0.8em;
+        color: #666;
+        background: #f5f5f5;
+        padding: 2px 8px;
+        border-radius: 12px;
+      }
+
+      .cache-files {
+        font-size: 0.8em;
+        color: #2e7d32;
+        background: #e8f5e8;
+        padding: 2px 8px;
+        border-radius: 12px;
+      }
+
+      .cache-empty {
+        border-left-color: #ff9800;
+        opacity: 0.7;
+      }
+
+      .cache-large {
+        border-left-color: #f44336;
+      }
+
+      .two-fa-section {
+        display: none;
+        margin-top: 20px;
+        padding: 20px;
+        background: #fff3cd;
+        border-radius: 10px;
+        border: 1px solid #ffeaa7;
+      }
+
+      .two-fa-section h3 {
+        color: #856404;
+        margin-bottom: 15px;
+      }
+
+      .code-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ffeaa7;
+        border-radius: 8px;
+        font-size: 18px;
+        text-align: center;
+        letter-spacing: 3px;
+        font-weight: bold;
+      }
+
+      .cookie-status {
+        background: #d1ecf1;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 20px 0;
+        border: 1px solid #bee5eb;
+      }
+
+      .cookie-status h4 {
+        color: #0c5460;
+        margin-bottom: 10px;
+      }
+
+      .cookie-info {
+        font-size: 0.9em;
+        color: #0c5460;
+        margin-bottom: 5px;
+      }
+
+      .tabs {
+        display: flex;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+      }
+
+      .tab {
+        flex: 1;
+        padding: 15px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        color: #666;
+        transition: all 0.3s ease;
+      }
+
+      .tab.active {
+        color: #4267b2;
+        border-bottom: 3px solid #4267b2;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      /* Modal Styles */
+      .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+      }
+
+      .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 0;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease-out;
+      }
+
+      @keyframes modalSlideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .modal-header {
+        background: linear-gradient(45deg, #4267b2, #365899);
+        color: white;
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        font-size: 1.2em;
+      }
+
+      .close-modal {
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      .close-modal:hover {
+        opacity: 1;
+      }
+
+      .modal-body {
+        padding: 20px;
+      }
+
+      .modal-footer {
+        padding: 20px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .two-fa-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 15px 0;
+        border-left: 4px solid #4267b2;
+      }
+
+      .two-fa-info p {
+        margin: 5px 0;
+        font-size: 0.9em;
+      }
+
+      .two-fa-source {
+        margin: 15px 0;
+      }
+
+      .two-fa-source label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+      }
+
+      .code-input {
+        font-size: 24px !important;
+        text-align: center;
+        letter-spacing: 8px;
+        font-weight: bold;
+        border: 3px solid #4267b2 !important;
+        background: #f8f9ff !important;
+      }
+
+      .code-input:focus {
+        box-shadow: 0 0 0 3px rgba(66, 103, 178, 0.2) !important;
+        border-color: #4267b2 !important;
+      }
+
+      .two-fa-status {
+        margin: 15px 0;
+        padding: 10px;
+        border-radius: 8px;
+        display: none;
+      }
+
+      .two-fa-status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .two-fa-status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .two-fa-status.info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      @media (max-width: 768px) {
+        .secondary-btn {
+          width: 100%;
+          margin: 5px 0;
+        }
+
+        .container {
+          padding: 20px;
+        }
+
+        .modal-content {
+          margin: 5% auto;
+          width: 95%;
+        }
+
+        .modal-footer {
+          flex-direction: column;
+        }
+
+        .modal-footer button {
+          width: 100%;
+          margin: 5px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">🔐 Facebook Login</div>
+      <div class="subtitle">Automatización con Cookies Persistentes</div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('login')">🚀 Login</button>
+        <button class="tab" onclick="showTab('sessions')">📊 Sesiones</button>
+        <button class="tab" onclick="showTab('cookies')">🍪 Cookies</button>
+        <button class="tab" onclick="showTab('cache')">💾 Cache</button>
+        <button class="tab" onclick="showTab('info')">ℹ️ Info</button>
+      </div>
+
+      <!-- Login Tab -->
+      <div id="login-tab" class="tab-content active">
+        <!-- Quick Login Section -->
+        <div class="quick-login-section">
+          <h3>⚡ Login Rápido</h3>
+          <p>Usa cookies y cache guardados (sin contraseña)</p>
+          <form id="quickLoginForm">
+            <div class="form-group">
+              <label for="quickEmail">📧 Email:</label>
+              <input
+                type="email"
+                id="quickEmail"
+                name="quickEmail"
+                required
+                placeholder="tu@email.com"
+              />
+            </div>
+            <div class="form-group">
+              <label for="quickVersion">🌐 Versión de Facebook:</label>
+              <select id="quickVersion" name="quickVersion" required>
+                <option value="auto">🔄 Auto (Móvil → Desktop)</option>
+                <option value="mobile">📱 Solo Móvil (m.facebook.com)</option>
+                <option value="desktop">
+                  🖥️ Solo Desktop (www.facebook.com)
+                </option>
+              </select>
+            </div>
+            <button type="submit" class="quick-login-btn" id="quickLoginBtn">
+              ⚡ Login Rápido (Solo Cookies)
+            </button>
+          </form>
+        </div>
+
+        <div class="divider">
+          <span>O</span>
+        </div>
+
+        <!-- Normal Login Section -->
+        <div class="normal-login-section">
+          <h3>🔐 Login Normal</h3>
+          <p>Login completo con email y contraseña</p>
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="email">📧 Email de Facebook:</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="tu@email.com"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="password">🔒 Contraseña:</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                placeholder="Tu contraseña"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="version">🌐 Versión de Facebook:</label>
+              <select id="version" name="version" required>
+                <option value="auto">🔄 Auto (Móvil → Desktop)</option>
+                <option value="mobile">📱 Solo Móvil (m.facebook.com)</option>
+                <option value="desktop">
+                  🖥️ Solo Desktop (www.facebook.com)
+                </option>
+              </select>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+              🚀 Iniciar Sesión con Cookies
+            </button>
+          </form>
+        </div>
+
+        <!-- Cookie Status -->
+        <div id="cookieStatus" class="cookie-status" style="display: none">
+          <h4>🍪 Estado de Cookies</h4>
+          <div id="cookieInfo"></div>
+        </div>
+
+        <!-- 2FA Modal -->
+        <div id="twoFAModal" class="modal" style="display: none">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>🔐 Código de Verificación 2FA</h3>
+              <span class="close-modal" onclick="close2FAModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+              <p>
+                Se requiere código de autenticación de dos factores para
+                completar el login.
+              </p>
+              <div id="twoFAInfo" class="two-fa-info">
+                <p><strong>Email:</strong> <span id="twoFAEmail">-</span></p>
+                <p>
+                  <strong>Versión:</strong> <span id="twoFAVersion">-</span>
+                </p>
+              </div>
+
+              <div class="form-group">
+                <label for="twoFACode">🔢 Código 2FA (6 dígitos):</label>
+                <input
+                  type="text"
+                  id="twoFACode"
+                  class="code-input"
+                  maxlength="6"
+                  pattern="[0-9]{6}"
+                  placeholder="123456"
+                  inputmode="numeric"
+                />
+              </div>
+
+              <div class="two-fa-source">
+                <label for="twoFASource">📱 Fuente del código:</label>
+                <select id="twoFASource">
+                  <option value="manual">✋ Manual (Ingreso directo)</option>
+                  <option value="email" disabled>
+                    📧 Email (Próximamente)
+                  </option>
+                  <option value="file" disabled>
+                    📄 Archivo (Próximamente)
+                  </option>
+                  <option value="external" disabled>
+                    🔗 API Externa (Próximamente)
+                  </option>
+                </select>
+              </div>
+
+              <div id="twoFAStatus" class="two-fa-status"></div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="login-btn"
+                onclick="submit2FACode()"
+                id="submit2FABtn"
+              >
+                ✅ Verificar Código
+              </button>
+              <button
+                type="button"
+                class="secondary-btn danger-btn"
+                onclick="cancel2FA()"
+              >
+                ❌ Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p>Iniciando sesión con cookies persistentes...</p>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="status"></div>
+
+        <!-- Action Buttons -->
+        <div style="margin-top: 20px">
+          <button class="secondary-btn" onclick="refreshSessions()">
+            🔄 Actualizar Sesiones
+          </button>
+          <button class="secondary-btn danger-btn" onclick="cleanCookies()">
+            🧹 Limpiar Cookies
+          </button>
+        </div>
+      </div>
+
+      <!-- Sessions Tab -->
+      <div id="sessions-tab" class="tab-content">
+        <div class="sessions-panel" style="display: block">
+          <h3>📊 Sesiones Activas</h3>
+          <div id="sessionsList">
+            <p style="text-align: center; color: #666">Cargando sesiones...</p>
+          </div>
+          <div style="text-align: center; margin-top: 20px">
+            <button class="secondary-btn" onclick="refreshSessions()">
+              🔄 Actualizar Lista
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cookies Tab -->
+      <div id="cookies-tab" class="tab-content">
+        <div class="cookies-panel" style="display: block">
+          <h3>🍪 Cookies Guardadas</h3>
+          <div id="cookiesList">
+            <p style="text-align: center; color: #666">Cargando cookies...</p>
+          </div>
+          <div style="text-align: center; margin-top: 20px">
+            <button class="secondary-btn" onclick="refreshCookies()">
+              🔄 Actualizar Lista
+            </button>
+            <button
+              class="secondary-btn danger-btn"
+              onclick="cleanAllCookies()"
+            >
+              🗑️ Limpiar Todas
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cache Tab -->
+      <div id="cache-tab" class="tab-content">
+        <div class="cache-panel" style="display: block">
+          <h3>💾 Cache del Navegador</h3>
+          <div
+            id="cacheInfo"
+            style="
+              background: #e3f2fd;
+              padding: 15px;
+              border-radius: 10px;
+              margin-bottom: 20px;
+            "
+          >
+            <p style="text-align: center; color: #666">
+              Cargando información de cache...
+            </p>
+          </div>
+          <div id="cacheList">
+            <p style="text-align: center; color: #666">Cargando cache...</p>
+          </div>
+          <div style="text-align: center; margin-top: 20px">
+            <button class="secondary-btn" onclick="refreshCache()">
+              🔄 Actualizar Cache
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Tab -->
+      <div id="info-tab" class="tab-content">
+        <div class="features">
+          <h3>🚀 Características Avanzadas</h3>
+          <ul>
+            <li>
+              <strong>Cookies Persistentes:</strong> Guarda cookies por 7 días
+            </li>
+            <li>
+              <strong>Login Automático:</strong> Reutiliza sesiones guardadas
+            </li>
+            <li>
+              <strong>Cache del Navegador:</strong> Mejora velocidad de carga
+            </li>
+            <li>
+              <strong>Sesiones Permanentes:</strong> No se cierran
+              automáticamente
+            </li>
+            <li>
+              <strong>Soporte 2FA:</strong> Manejo de autenticación de dos
+              factores
+            </li>
+            <li>
+              <strong>Gestión de Sesiones:</strong> Control manual de
+              navegadores
+            </li>
+            <li><strong>Debug Avanzado:</strong> Capturas y logs detallados</li>
+            <li>
+              <strong>Limpieza Automática:</strong> Elimina cookies antiguas
+            </li>
+          </ul>
+        </div>
+
+        <div class="features">
+          <h3>📖 Endpoints de API</h3>
+          <ul>
+            <li><strong>POST /login:</strong> Iniciar sesión con cookies</li>
+            <li><strong>GET /sessions:</strong> Listar sesiones activas</li>
+            <li><strong>GET /cookies:</strong> Listar cookies guardadas</li>
+            <li>
+              <strong>POST /close-session:</strong> Cerrar sesión específica
+            </li>
+            <li>
+              <strong>DELETE /cookies/:email:</strong> Eliminar cookies
+              específicas
+            </li>
+            <li>
+              <strong>POST /clean-cookies:</strong> Limpiar cookies antiguas
+            </li>
+            <li><strong>GET /debug:</strong> Acceder a archivos de debug</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentSessionId = null;
+
+      // Tab Management
+      function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll(".tab-content").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+
+        // Show selected tab
+        document.getElementById(tabName + "-tab").classList.add("active");
+        event.target.classList.add("active");
+
+        // Load data if specific tabs are selected
+        if (tabName === "sessions") {
+          refreshSessions();
+        } else if (tabName === "cookies") {
+          refreshCookies();
+        } else if (tabName === "cache") {
+          refreshCache();
+        }
+      }
+
+      // Quick Login Form Handler
+      document
+        .getElementById("quickLoginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const email = document.getElementById("quickEmail").value;
+          const version = document.getElementById("quickVersion").value;
+
+          if (!email) {
+            showStatus("error", "Por favor ingresa el email");
+            return;
+          }
+
+          showQuickLoading(true);
+          hideStatus();
+          hideCookieStatus();
+
+          try {
+            const response = await fetch("/quick-login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, version }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              currentSessionId = data.sessionId;
+              const versionText = data.version
+                ? ` (${data.version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"})`
+                : "";
+              showStatus("success", data.message + versionText);
+
+              // Show cookie status for quick login
+              showCookieStatus(true, email, true, data.version);
+
+              // Refresh sessions list
+              refreshSessions();
+            } else {
+              if (data.error === "NO_COOKIES") {
+                showStatus(
+                  "warning",
+                  "No hay cookies guardadas para este email. Usa login normal primero."
+                );
+              } else if (
+                data.error === "QUICK_LOGIN_FAILED" ||
+                data.error === "BOTH_VERSIONS_FAILED"
+              ) {
+                let message =
+                  "Las cookies han expirado. Usa login normal para renovarlas.";
+                if (data.attempts) {
+                  message += `\n\n📱 Móvil: ${data.attempts.mobile}\n🖥️ Desktop: ${data.attempts.desktop}`;
+                }
+                showStatus("warning", message);
+              } else {
+                showStatus("error", data.message || data.error);
+              }
+            }
+          } catch (error) {
+            showStatus("error", "Error de conexión: " + error.message);
+          } finally {
+            showQuickLoading(false);
+          }
+        });
+
+      // Normal Login Form Handler
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+          const version = document.getElementById("version").value;
+
+          if (!email || !password) {
+            showStatus("error", "Por favor completa todos los campos");
+            return;
+          }
+
+          showLoading(true);
+          hideStatus();
+          hideCookieStatus();
+
+          try {
+            const response = await fetch("/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, password, version }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              currentSessionId = data.sessionId;
+              const versionText = data.version
+                ? ` (${data.version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"})`
+                : "";
+              showStatus("success", data.message + versionText);
+
+              // Show cookie status
+              showCookieStatus(data.usedSavedData, email, false, data.version);
+
+              // Refresh sessions list
+              refreshSessions();
+            } else {
+              if (data.requires2FA) {
+                // Show 2FA modal instead of inline section
+                show2FAModal(data.sessionId, email, data.version);
+                currentSessionId = data.sessionId;
+                const versionText = data.version
+                  ? ` (${
+                      data.version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"
+                    })`
+                  : "";
+                showStatus("warning", data.message + versionText);
+              } else {
+                let message = data.message || data.error;
+                if (data.error === "BOTH_VERSIONS_FAILED" && data.attempts) {
+                  message += `\n\n📱 Móvil: ${data.attempts.mobile}\n🖥️ Desktop: ${data.attempts.desktop}`;
+                }
+                showStatus("error", message);
+              }
+            }
+          } catch (error) {
+            showStatus("error", "Error de conexión: " + error.message);
+          } finally {
+            showLoading(false);
+          }
+        });
+
+      // 2FA Modal Management
+      let current2FASessionId = null;
+      let current2FAEmail = null;
+      let current2FAVersion = null;
+
+      function show2FAModal(sessionId, email, version) {
+        current2FASessionId = sessionId;
+        current2FAEmail = email;
+        current2FAVersion = version;
+
+        // Update modal info
+        document.getElementById("twoFAEmail").textContent = email;
+        document.getElementById("twoFAVersion").textContent =
+          version === "mobile" ? "📱 Móvil" : "🖥️ Desktop";
+
+        // Clear previous input and status
+        document.getElementById("twoFACode").value = "";
+        document.getElementById("twoFAStatus").style.display = "none";
+
+        // Show modal
+        document.getElementById("twoFAModal").style.display = "block";
+
+        // Focus on code input
+        setTimeout(() => {
+          document.getElementById("twoFACode").focus();
+        }, 300);
+      }
+
+      function close2FAModal() {
+        document.getElementById("twoFAModal").style.display = "none";
+        current2FASessionId = null;
+        current2FAEmail = null;
+        current2FAVersion = null;
+      }
+
+      async function submit2FACode() {
+        const code = document.getElementById("twoFACode").value.trim();
+        const source = document.getElementById("twoFASource").value;
+
+        if (!code) {
+          show2FAStatus("error", "Por favor ingresa el código 2FA");
+          return;
+        }
+
+        if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+          show2FAStatus("error", "El código debe tener exactamente 6 dígitos");
+          return;
+        }
+
+        if (!current2FASessionId) {
+          show2FAStatus("error", "Error: No hay sesión activa para 2FA");
+          return;
+        }
+
+        // Disable submit button
+        const submitBtn = document.getElementById("submit2FABtn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "⏳ Verificando...";
+
+        show2FAStatus("info", "Enviando código 2FA...");
+
+        try {
+          const response = await fetch("/submit-2fa", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId: current2FASessionId,
+              code: code,
+              source: source,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            if (data.loginCompleted) {
+              show2FAStatus("success", "¡Login exitoso con 2FA!");
+
+              // Close modal after short delay
+              setTimeout(() => {
+                close2FAModal();
+                showStatus(
+                  "success",
+                  `¡Login ${current2FAVersion} exitoso con 2FA! Cookies guardados.`
+                );
+                showCookieStatus(
+                  false,
+                  current2FAEmail,
+                  false,
+                  current2FAVersion
+                );
+                refreshSessions();
+              }, 1500);
+            } else {
+              show2FAStatus("success", data.message);
+            }
+          } else {
+            if (data.stillRequires2FA) {
+              show2FAStatus("error", data.message);
+              // Clear the code input for retry
+              document.getElementById("twoFACode").value = "";
+              document.getElementById("twoFACode").focus();
+            } else {
+              show2FAStatus("error", data.message);
+            }
+          }
+        } catch (error) {
+          show2FAStatus("error", "Error de conexión: " + error.message);
+        } finally {
+          // Re-enable submit button
+          submitBtn.disabled = false;
+          submitBtn.textContent = "✅ Verificar Código";
+        }
+      }
+
+      async function cancel2FA() {
+        if (!current2FASessionId) {
+          close2FAModal();
+          return;
+        }
+
+        if (
+          !confirm(
+            "¿Estás seguro de que quieres cancelar el 2FA? Esto cerrará la sesión."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/cancel-2fa", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId: current2FASessionId,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            close2FAModal();
+            showStatus("warning", "2FA cancelado. Sesión cerrada.");
+            refreshSessions();
+          } else {
+            show2FAStatus("error", data.message);
+          }
+        } catch (error) {
+          show2FAStatus("error", "Error cancelando 2FA: " + error.message);
+        }
+      }
+
+      function show2FAStatus(type, message) {
+        const statusDiv = document.getElementById("twoFAStatus");
+        statusDiv.className = `two-fa-status ${type}`;
+        statusDiv.textContent = message;
+        statusDiv.style.display = "block";
+      }
+
+      // Handle Enter key in 2FA code input
+      document
+        .getElementById("twoFACode")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            submit2FACode();
+          }
+        });
+
+      // Handle clicking outside modal to close
+      document
+        .getElementById("twoFAModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            close2FAModal();
+          }
+        });
+
+      // Session Management
+      async function refreshSessions() {
+        try {
+          const response = await fetch("/sessions");
+          const data = await response.json();
+
+          const sessionsList = document.getElementById("sessionsList");
+
+          if (data.count === 0) {
+            sessionsList.innerHTML =
+              '<p style="text-align: center; color: #666;">No hay sesiones activas</p>';
+          } else {
+            sessionsList.innerHTML = data.sessions
+              .map((session) => {
+                const versionIcon = session.version === "mobile" ? "📱" : "🖥️";
+                const versionText =
+                  session.version === "mobile" ? "Móvil" : "Desktop";
+                const quickLoginBadge = session.quickLogin
+                  ? '<span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.8em; margin-left: 10px;">⚡ Quick</span>'
+                  : "";
+
+                return `
+                  <div class="session-item">
+                    <div class="session-email">${
+                      session.email
+                    } ${quickLoginBadge}</div>
+                    <div class="session-info">
+                      ${versionIcon} Versión: ${versionText}<br>
+                      Creada: ${new Date(
+                        session.createdAt
+                      ).toLocaleString()}<br>
+                      Tiempo activo: ${Math.round(
+                        session.uptime / (1000 * 60)
+                      )} minutos
+                    </div>
+                    <div class="session-actions">
+                      <button class="close-session-btn" onclick="closeSession('${
+                        session.sessionId
+                      }')">
+                        🗑️ Cerrar
+                      </button>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("");
+          }
+        } catch (error) {
+          document.getElementById("sessionsList").innerHTML =
+            '<p style="text-align: center; color: #dc3545;">Error cargando sesiones</p>';
+        }
+      }
+
+      async function closeSession(sessionId) {
+        if (!confirm("¿Estás seguro de que quieres cerrar esta sesión?")) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/close-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showStatus("success", "Sesión cerrada exitosamente");
+            refreshSessions();
+          } else {
+            showStatus("error", data.message);
+          }
+        } catch (error) {
+          showStatus("error", "Error cerrando sesión: " + error.message);
+        }
+      }
+
+      async function cleanCookies() {
+        if (
+          !confirm(
+            "¿Estás seguro de que quieres limpiar todas las cookies antiguas?"
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/clean-cookies", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showStatus("success", "Cookies antiguas limpiadas exitosamente");
+            hideCookieStatus();
+          } else {
+            showStatus("error", "Error limpiando cookies");
+          }
+        } catch (error) {
+          showStatus("error", "Error: " + error.message);
+        }
+      }
+
+      // Cookies Management
+      async function refreshCookies() {
+        try {
+          const response = await fetch("/cookies");
+          const data = await response.json();
+
+          const cookiesList = document.getElementById("cookiesList");
+
+          if (data.count === 0) {
+            cookiesList.innerHTML =
+              '<p style="text-align: center; color: #666;">No hay cookies guardadas</p>';
+          } else {
+            cookiesList.innerHTML = data.cookies
+              .map((cookie) => {
+                const age = cookie.age;
+                const ageHours = Math.round(age / (1000 * 60 * 60));
+                const ageDays = Math.round(age / (1000 * 60 * 60 * 24));
+
+                let ageText = "";
+                let ageClass = "";
+
+                if (ageHours < 24) {
+                  ageText = `${ageHours} horas`;
+                  ageClass = "cookie-fresh";
+                } else if (ageDays < 7) {
+                  ageText = `${ageDays} días`;
+                  ageClass = "cookie-fresh";
+                } else {
+                  ageText = `${ageDays} días (antigua)`;
+                  ageClass = "cookie-old";
+                }
+
+                const totalSizeKB = Math.round(cookie.totalSize / 1024);
+
+                // Detalles de archivos
+                let filesInfo = "";
+                if (cookie.files.cookies && cookie.files.session) {
+                  const cookiesSizeKB = Math.round(
+                    cookie.files.cookies.size / 1024
+                  );
+                  const sessionSizeKB = Math.round(
+                    cookie.files.session.size / 1024
+                  );
+                  filesInfo = `
+                    <div style="font-size: 0.8em; color: #888; margin-top: 5px;">
+                      🍪 Cookies: ${cookiesSizeKB} KB | 💾 Sesión: ${sessionSizeKB} KB
+                    </div>
+                  `;
+                } else if (cookie.files.cookies) {
+                  filesInfo = `
+                    <div style="font-size: 0.8em; color: #ff9800; margin-top: 5px;">
+                      🍪 Solo cookies (${totalSizeKB} KB) - ⚠️ Falta archivo de sesión
+                    </div>
+                  `;
+                } else if (cookie.files.session) {
+                  filesInfo = `
+                    <div style="font-size: 0.8em; color: #ff9800; margin-top: 5px;">
+                      💾 Solo sesión (${totalSizeKB} KB) - ⚠️ Falta archivo de cookies
+                    </div>
+                  `;
+                }
+
+                return `
+                  <div class="cookie-item ${ageClass}">
+                    <div class="cookie-email">${cookie.email}</div>
+                    <div class="cookie-info">
+                      🕒 Última modificación: ${new Date(
+                        cookie.lastModified
+                      ).toLocaleString()}<br>
+                      📁 ${cookie.fileCount} archivo${
+                  cookie.fileCount > 1 ? "s" : ""
+                } guardado${cookie.fileCount > 1 ? "s" : ""}
+                      ${filesInfo}
+                    </div>
+                    <div class="cookie-meta">
+                      <div>
+                        <span class="cookie-age">⏰ ${ageText}</span>
+                      </div>
+                      <div>
+                        <span class="cookie-size">${totalSizeKB} KB total</span>
+                        <button class="delete-cookie-btn" onclick="deleteCookie('${
+                          cookie.email
+                        }')">
+                          🗑️ Eliminar Todo
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("");
+          }
+        } catch (error) {
+          document.getElementById("cookiesList").innerHTML =
+            '<p style="text-align: center; color: #dc3545;">Error cargando cookies</p>';
+        }
+      }
+
+      async function deleteCookie(email) {
+        if (
+          !confirm(
+            `¿Estás seguro de que quieres eliminar las cookies de ${email}?`
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/cookies/${encodeURIComponent(email)}`,
+            {
+              method: "DELETE",
+            }
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showStatus("success", `Cookies eliminadas para ${email}`);
+            refreshCookies();
+          } else {
+            showStatus("error", data.message);
+          }
+        } catch (error) {
+          showStatus("error", "Error eliminando cookies: " + error.message);
+        }
+      }
+
+      async function cleanAllCookies() {
+        if (
+          !confirm(
+            "¿Estás seguro de que quieres eliminar TODAS las cookies guardadas? Esta acción no se puede deshacer."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/clean-cookies", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showStatus("success", "Todas las cookies han sido eliminadas");
+            refreshCookies();
+            hideCookieStatus();
+          } else {
+            showStatus("error", "Error limpiando todas las cookies");
+          }
+        } catch (error) {
+          showStatus("error", "Error: " + error.message);
+        }
+      }
+
+      // Cache Management
+      async function refreshCache() {
+        try {
+          const response = await fetch("/cache");
+          const data = await response.json();
+
+          // Actualizar información general de cache
+          const cacheInfo = document.getElementById("cacheInfo");
+          const totalSizeMB = Math.round(data.totalSize / (1024 * 1024));
+
+          cacheInfo.innerHTML = `
+            <div style="text-align: center;">
+              <h4 style="color: #1976d2; margin-bottom: 10px;">📊 Resumen de Cache</h4>
+              <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                <div style="margin: 5px;">
+                  <strong>${data.count}</strong><br>
+                  <small>Usuarios</small>
+                </div>
+                <div style="margin: 5px;">
+                  <strong>${totalSizeMB} MB</strong><br>
+                  <small>Tamaño Total</small>
+                </div>
+                <div style="margin: 5px;">
+                  <strong>${data.totalFiles.toLocaleString()}</strong><br>
+                  <small>Archivos</small>
+                </div>
+              </div>
+            </div>
+          `;
+
+          // Actualizar lista de cache
+          const cacheList = document.getElementById("cacheList");
+
+          if (data.count === 0) {
+            cacheList.innerHTML =
+              '<p style="text-align: center; color: #666;">No hay cache del navegador</p>';
+          } else {
+            cacheList.innerHTML = data.caches
+              .map((cache) => {
+                const age = cache.age;
+                const ageHours = Math.round(age / (1000 * 60 * 60));
+                const ageDays = Math.round(age / (1000 * 60 * 60 * 24));
+
+                let ageText = "";
+                let cacheClass = "";
+
+                if (cache.size === 0) {
+                  cacheClass = "cache-empty";
+                  ageText = "Vacío";
+                } else if (cache.size > 50 * 1024 * 1024) {
+                  // > 50MB
+                  cacheClass = "cache-large";
+                  ageText =
+                    ageHours < 24 ? `${ageHours} horas` : `${ageDays} días`;
+                } else {
+                  cacheClass = "";
+                  ageText =
+                    ageHours < 24 ? `${ageHours} horas` : `${ageDays} días`;
+                }
+
+                const sizeMB =
+                  Math.round((cache.size / (1024 * 1024)) * 10) / 10;
+
+                return `
+                  <div class="cache-item ${cacheClass}">
+                    <div class="cache-email">${cache.email}</div>
+                    <div class="cache-info">
+                      📅 Creado: ${new Date(cache.created).toLocaleString()}<br>
+                      🕒 Última actividad: ${new Date(
+                        cache.lastModified
+                      ).toLocaleString()}
+                    </div>
+                    <div class="cache-stats">
+                      <div>
+                        <span style="font-size: 0.8em; color: #999;">⏰ ${ageText}</span>
+                      </div>
+                      <div>
+                        <span class="cache-files">${cache.fileCount.toLocaleString()} archivos</span>
+                        <span class="cache-size">${sizeMB} MB</span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("");
+          }
+        } catch (error) {
+          document.getElementById("cacheList").innerHTML =
+            '<p style="text-align: center; color: #dc3545;">Error cargando cache</p>';
+          document.getElementById("cacheInfo").innerHTML =
+            '<p style="text-align: center; color: #dc3545;">Error cargando información</p>';
+        }
+      }
+
+      // UI Helper Functions
+      function showLoading(show) {
+        document.getElementById("loading").style.display = show
+          ? "block"
+          : "none";
+        document.getElementById("loginBtn").disabled = show;
+      }
+
+      function showQuickLoading(show) {
+        document.getElementById("quickLoginBtn").disabled = show;
+        if (show) {
+          document.getElementById("quickLoginBtn").textContent =
+            "⏳ Conectando...";
+        } else {
+          document.getElementById("quickLoginBtn").textContent =
+            "⚡ Login Rápido (Solo Cookies)";
+        }
+      }
+
+      function showStatus(type, message) {
+        const status = document.getElementById("status");
+        status.className = `status ${type}`;
+        status.textContent = message;
+        status.style.display = "block";
+      }
+
+      function hideStatus() {
+        document.getElementById("status").style.display = "none";
+      }
+
+      function showCookieStatus(
+        usedSavedCookies,
+        email,
+        isQuickLogin = false,
+        version
+      ) {
+        const cookieStatus = document.getElementById("cookieStatus");
+        const cookieInfo = document.getElementById("cookieInfo");
+
+        if (isQuickLogin) {
+          cookieInfo.innerHTML = `
+            <div class="cookie-info">⚡ Login rápido exitoso para ${email} ${
+            version
+              ? ` (${version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"})`
+              : ""
+          }</div>
+            <div class="cookie-info">🍪 Usando cookies y cache guardados</div>
+            <div class="cookie-info">🚀 Sin necesidad de contraseña</div>
+            <div class="cookie-info">⏰ Cookies actualizadas automáticamente</div>
+          `;
+        } else if (usedSavedCookies) {
+          cookieInfo.innerHTML = `
+            <div class="cookie-info">✅ Se utilizaron cookies guardadas para ${email} ${
+            version
+              ? ` (${version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"})`
+              : ""
+          }</div>
+            <div class="cookie-info">🚀 Login automático exitoso</div>
+            <div class="cookie-info">⏰ Cookies válidas por 7 días</div>
+          `;
+        } else {
+          cookieInfo.innerHTML = `
+            <div class="cookie-info">💾 Cookies guardadas para ${email} ${
+            version
+              ? ` (${version === "mobile" ? "📱 Móvil" : "🖥️ Desktop"})`
+              : ""
+          }</div>
+            <div class="cookie-info">🔄 Próximo login será automático</div>
+            <div class="cookie-info">⏰ Válidas por 7 días</div>
+          `;
+        }
+
+        cookieStatus.style.display = "block";
+      }
+
+      function hideCookieStatus() {
+        document.getElementById("cookieStatus").style.display = "none";
+      }
+
+      // Auto-refresh data every 30 seconds
+      setInterval(() => {
+        if (
+          document.getElementById("sessions-tab").classList.contains("active")
+        ) {
+          refreshSessions();
+        } else if (
+          document.getElementById("cookies-tab").classList.contains("active")
+        ) {
+          refreshCookies();
+        } else if (
+          document.getElementById("cache-tab").classList.contains("active")
+        ) {
+          refreshCache();
+        }
+      }, 30000);
+
+      // Load initial data on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        refreshSessions();
+        refreshCookies();
+        refreshCache();
+      });
+    </script>
+  </body>
+</html>
