@@ -23,7 +23,10 @@ const {
     loadCookies,
     saveSessionState,
     restoreSessionState,
-    cleanOldSessions
+    cleanOldSessions,
+    typeSlowHuman,
+    handleDeviceTrustDialog,
+    handleChromePopups
 } = require('./helpers');
 
 const app = express();
@@ -246,20 +249,66 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
                 await handleSaveLoginDialog(page);
                 
                 // Verificar si ya estamos logueados
-                if (await checkLoginSuccess(page)) {
-                    console.log(`🎉 ¡Login exitoso usando cookies + cache ${version}!`);
+                const loginResult = await checkLoginSuccess(page);
+                if (loginResult === true || loginResult === 'NEEDS_DIALOG_HANDLING' || loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                    console.log(`🎉 ¡Login ${version} exitoso con credenciales!`);
+                    
+                    // Si necesita manejo de diálogo, hacerlo ahora
+                    if (loginResult === 'NEEDS_DIALOG_HANDLING') {
+                        console.log(`🔄 Manejando diálogo de guardar login...`);
+                        const dialogHandled = await handleSaveLoginDialog(page);
+                        if (dialogHandled) {
+                            console.log(`✅ Diálogo de guardar login manejado exitosamente`);
+                            await sleep(2000);
+                        } else {
+                            console.log(`⚠️ No se pudo manejar el diálogo, continuando...`);
+                        }
+                    } else if (loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                        console.log(`🔐 Manejando diálogo de confianza del dispositivo con clics persistentes...`);
+                        const trustHandled = await handleDeviceTrustDialog(page);
+                        if (trustHandled) {
+                            console.log(`✅ Diálogo de confianza del dispositivo completado exitosamente`);
+                            await sleep(2000);
+                            
+                            // Después del diálogo de confianza, verificar estado final del login
+                            console.log('🔍 Verificando estado final del login después de manejo de confianza...');
+                            const finalCheck = await checkLoginSuccess(page);
+                            if (finalCheck === 'NEEDS_DIALOG_HANDLING') {
+                                console.log(`🔄 Manejando diálogo adicional de guardar login...`);
+                                await handleSaveLoginDialog(page);
+                                await sleep(2000);
+                            } else if (finalCheck === true) {
+                                console.log(`🎉 Login completamente exitoso después de confianza del dispositivo`);
+                            }
+                        } else {
+                            console.log(`⚠️ No se pudo completar el manejo del diálogo de confianza`);
+                            // Aún así, intentar continuar ya que el login podría estar completo
+                        }
+                    }
                     
                     // Actualizar cookies SOLO si realmente se usaron cookies guardadas
                     await saveCookies(context, email, COOKIES_DIR);
                     await saveSessionState(context, page, email, COOKIES_DIR);
                     
+                    // Si es un contexto fresco, ahora crear el cache persistente para futuros quick logins
+                    if (!quickLogin && !cacheDir) {
+                        console.log(`💾 Creando cache persistente para futuros quick logins...`);
+                        cacheDir = path.join(CACHE_DIR, `${email.replace(/[@.]/g, '_')}_${version}`);
+                        if (!fs.existsSync(cacheDir)) {
+                            fs.mkdirSync(cacheDir, { recursive: true });
+                        }
+                    }
+                    
+                    console.log(`💾 Cookies y estado de sesión ${version} guardados exitosamente DESPUÉS del login`);
+                    console.log('🌐 Página permanece abierta - NO se cerrará automáticamente');
+                    
                     return {
                         success: true,
                         sessionId: sessionId,
-                        message: `¡Login exitoso usando cookies + cache ${version}! Página permanece abierta.`,
-                        usedSavedData: true,
+                        message: `¡Login ${version} exitoso con credenciales! Cookies + cache guardados. Página permanece abierta.`,
+                        usedSavedData: false,
                         version,
-                        quickLogin
+                        quickLogin: false
                     };
                 }
             } catch (error) {
@@ -386,41 +435,90 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
         }
         
         // Verificar éxito del login
-        if (await checkLoginSuccess(page)) {
-            console.log(`🎉 ¡Login ${version} exitoso con credenciales!`);
+        const loginResult = await checkLoginSuccess(page);
+        if (loginResult === true || loginResult === 'NEEDS_DIALOG_HANDLING' || loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
+            console.log(`🎉 ¡Login exitoso después de 2FA ${version}!`);
             
-            // Guardar cookies y estado de sesión SOLO DESPUÉS del login exitoso
-            await saveCookies(context, email, COOKIES_DIR);
-            await saveSessionState(context, page, email, COOKIES_DIR);
+            // Si necesita manejo de diálogo, hacerlo ahora
+            if (loginResult === 'NEEDS_DIALOG_HANDLING') {
+                console.log(`🔄 Manejando diálogo de guardar login...`);
+                const dialogHandled = await handleSaveLoginDialog(page);
+                if (dialogHandled) {
+                    console.log(`✅ Diálogo de guardar login manejado exitosamente`);
+                    await sleep(2000);
+                } else {
+                    console.log(`⚠️ No se pudo manejar el diálogo, continuando...`);
+                }
+            } else if (loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                console.log(`🔐 Manejando diálogo de confianza del dispositivo - SIMPLE APPROACH...`);
+                const trustHandled = await handleDeviceTrustDialog(page);
+                console.log(`✅ Diálogo de confianza procesado: ${trustHandled}`);
+                await sleep(3000); // Esperar a que se complete la redirección
+            }
             
-            // Si es un contexto fresco, ahora crear el cache persistente para futuros quick logins
-            if (!quickLogin && !cacheDir) {
-                console.log(`💾 Creando cache persistente para futuros quick logins...`);
-                cacheDir = path.join(CACHE_DIR, `${email.replace(/[@.]/g, '_')}_${version}`);
-                if (!fs.existsSync(cacheDir)) {
-                    fs.mkdirSync(cacheDir, { recursive: true });
+            // Guardar cookies y estado de sesión solo DESPUÉS del login exitoso
+            const session = activeSessions[sessionId];
+            if (session) {
+                await saveCookies(session.context, email, COOKIES_DIR);
+                await saveSessionState(session.context, page, email, COOKIES_DIR);
+                console.log(`💾 Cookies y estado de sesión ${version} guardados exitosamente`);
+            }
+            
+            // Limpiar sesión pendiente
+            pending2FASessions.delete(sessionId);
+            
+            res.json({
+                success: true,
+                sessionId: sessionId,
+                message: `¡Login ${version} exitoso con 2FA!`,
+                loginCompleted: true
+            });
+            
+        } else {
+            // Manejar el caso donde aún no está completamente logueado
+            // Podría ser que necesite manejar más diálogos
+            console.log(`⚠️ Login no completamente exitoso, verificando diálogos adicionales...`);
+            
+            // Intentar manejar diálogo de guardar login
+            const dialogHandled = await handleSaveLoginDialog(page);
+            if (dialogHandled) {
+                console.log(`✅ Diálogo de guardar login manejado, re-verificando login...`);
+                await sleep(2000);
+                
+                // Re-verificar después de manejar el diálogo
+                const secondCheck = await checkLoginSuccess(page);
+                if (secondCheck === true || secondCheck === 'NEEDS_DIALOG_HANDLING' || secondCheck === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                    console.log(`🎉 ¡Login exitoso después de manejar diálogo!`);
+                    
+                    // Si necesita manejo adicional de diálogos
+                    if (secondCheck === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                        console.log(`🔐 Manejando diálogo de confianza del dispositivo...`);
+                        await handleDeviceTrustDialog(page);
+                        await sleep(2000);
+                    }
+                    
+                    // Guardar cookies y estado de sesión
+                    const session = activeSessions[sessionId];
+                    if (session) {
+                        await saveCookies(session.context, email, COOKIES_DIR);
+                        await saveSessionState(session.context, page, email, COOKIES_DIR);
+                        console.log(`💾 Cookies y estado de sesión ${version} guardados exitosamente`);
+                    }
+                    
+                    // Limpiar sesión pendiente
+                    pending2FASessions.delete(sessionId);
+                    
+                    res.json({
+                        success: true,
+                        message: `¡Login ${version} exitoso con 2FA!`,
+                        loginCompleted: true
+                    });
+                    return;
                 }
             }
             
-            console.log(`💾 Cookies y estado de sesión ${version} guardados exitosamente DESPUÉS del login`);
-            console.log('🌐 Página permanece abierta - NO se cerrará automáticamente');
-            
-            return {
-                success: true,
-                sessionId: sessionId,
-                message: `¡Login ${version} exitoso con credenciales! Cookies + cache guardados. Página permanece abierta.`,
-                usedSavedData: false,
-                version,
-                quickLogin: false
-            };
+            throw new Error('Login no exitoso después de 2FA y manejo de diálogos');
         }
-        
-        // Si no fue exitoso, crear debug adicional
-        if (DEBUG_ENABLED) {
-            await createDebugSnapshot(page, `login-failed-${version}`, DEBUG_DIR);
-        }
-        
-        throw new Error(`El login ${version} no fue exitoso - verifica credenciales`);
         
     } catch (error) {
         console.error(`💥 Error durante login ${version}:`, error);
@@ -1260,9 +1358,19 @@ app.post('/submit-2fa', async (req, res) => {
             // Hacer click en enviar
             console.log('🚀 Enviando código 2FA...');
             await submitButton.click({ force: true });
-            await sleep(3000);
+            console.log('✅ Código 2FA enviado, esperando respuesta...');
+            await sleep(5000); // Esperar más tiempo para la respuesta de Facebook
+            
+            // NUEVO: Manejar cualquier popup de Chrome que pueda aparecer después del envío
+            console.log('🔔 Verificando popups de Chrome después de envío 2FA...');
+            const chromePopupHandled = await handleChromePopups(page);
+            if (chromePopupHandled) {
+                console.log('✅ Popup de Chrome manejado después de 2FA');
+                await sleep(2000);
+            }
             
             // Verificar resultado
+            console.log('🔐 Verificando si aún se requiere 2FA...');
             if (await checkFor2FA(page)) {
                 // Aún requiere 2FA - código incorrecto
                 res.json({
@@ -1274,8 +1382,26 @@ app.post('/submit-2fa', async (req, res) => {
             }
             
             // Verificar si el login fue exitoso
-            if (await checkLoginSuccess(page)) {
+            const loginResult = await checkLoginSuccess(page);
+            if (loginResult === true || loginResult === 'NEEDS_DIALOG_HANDLING' || loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
                 console.log(`🎉 ¡Login exitoso después de 2FA ${version}!`);
+                
+                // Si necesita manejo de diálogo, hacerlo ahora
+                if (loginResult === 'NEEDS_DIALOG_HANDLING') {
+                    console.log(`🔄 Manejando diálogo de guardar login...`);
+                    const dialogHandled = await handleSaveLoginDialog(page);
+                    if (dialogHandled) {
+                        console.log(`✅ Diálogo de guardar login manejado exitosamente`);
+                        await sleep(2000);
+                    } else {
+                        console.log(`⚠️ No se pudo manejar el diálogo, continuando...`);
+                    }
+                } else if (loginResult === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                    console.log(`🔐 Manejando diálogo de confianza del dispositivo - SIMPLE APPROACH...`);
+                    const trustHandled = await handleDeviceTrustDialog(page);
+                    console.log(`✅ Diálogo de confianza procesado: ${trustHandled}`);
+                    await sleep(3000); // Esperar a que se complete la redirección
+                }
                 
                 // Guardar cookies y estado de sesión solo DESPUÉS del login exitoso
                 const session = activeSessions[sessionId];
@@ -1288,24 +1414,57 @@ app.post('/submit-2fa', async (req, res) => {
                 // Limpiar sesión pendiente
                 pending2FASessions.delete(sessionId);
                 
-                // Resolver la promesa del login
-                resolve({
-                    success: true,
-                    sessionId: sessionId,
-                    message: `¡Login ${version} exitoso con 2FA! Cookies + cache guardados. Página permanece abierta.`,
-                    usedSavedData: false,
-                    version,
-                    completed2FA: true
-                });
-                
                 res.json({
                     success: true,
+                    sessionId: sessionId,
                     message: `¡Login ${version} exitoso con 2FA!`,
                     loginCompleted: true
                 });
                 
             } else {
-                throw new Error('Login no exitoso después de 2FA');
+                // Manejar el caso donde aún no está completamente logueado
+                // Podría ser que necesite manejar más diálogos
+                console.log(`⚠️ Login no completamente exitoso, verificando diálogos adicionales...`);
+                
+                // Intentar manejar diálogo de guardar login
+                const dialogHandled = await handleSaveLoginDialog(page);
+                if (dialogHandled) {
+                    console.log(`✅ Diálogo de guardar login manejado, re-verificando login...`);
+                    await sleep(2000);
+                    
+                    // Re-verificar después de manejar el diálogo
+                    const secondCheck = await checkLoginSuccess(page);
+                    if (secondCheck === true || secondCheck === 'NEEDS_DIALOG_HANDLING' || secondCheck === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                        console.log(`🎉 ¡Login exitoso después de manejar diálogo!`);
+                        
+                        // Si necesita manejo adicional de diálogos
+                        if (secondCheck === 'NEEDS_DEVICE_TRUST_HANDLING') {
+                            console.log(`🔐 Manejando diálogo de confianza del dispositivo...`);
+                            await handleDeviceTrustDialog(page);
+                            await sleep(3000);
+                        }
+                        
+                        // Guardar cookies y estado de sesión
+                        const session = activeSessions[sessionId];
+                        if (session) {
+                            await saveCookies(session.context, email, COOKIES_DIR);
+                            await saveSessionState(session.context, page, email, COOKIES_DIR);
+                            console.log(`💾 Cookies y estado de sesión ${version} guardados exitosamente`);
+                        }
+                        
+                        // Limpiar sesión pendiente
+                        pending2FASessions.delete(sessionId);
+                        
+                        res.json({
+                            success: true,
+                            message: `¡Login ${version} exitoso con 2FA!`,
+                            loginCompleted: true
+                        });
+                        return;
+                    }
+                }
+                
+                throw new Error('Login no exitoso después de 2FA y manejo de diálogos');
             }
             
         } catch (error) {

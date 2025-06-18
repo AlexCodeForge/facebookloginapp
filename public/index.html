@@ -800,14 +800,21 @@
             <div class="form-group">
               <label for="quickVersion">🌐 Versión de Facebook:</label>
               <select id="quickVersion" name="quickVersion" required>
-                <option value="auto">🔄 Auto (Móvil → Desktop)</option>
-                <option value="mobile">📱 Solo Móvil (m.facebook.com)</option>
-                <option value="desktop">
-                  🖥️ Solo Desktop (www.facebook.com)
-                </option>
+                <option value="mobile">📱 Móvil</option>
+                <option value="desktop">🖥️ Desktop</option>
               </select>
             </div>
-            <button type="submit" class="quick-login-btn" id="quickLoginBtn">
+            <div class="form-group">
+              <label for="files-quick">📁 Archivos de Cookies:</label>
+              <select id="files-quick" class="form-control">
+                <option value="">Selecciona archivos de cookies...</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              class="btn btn-success btn-block"
+              id="quick-login-btn"
+            >
               ⚡ Login Rápido (Solo Cookies)
             </button>
           </form>
@@ -846,12 +853,9 @@
 
             <div class="form-group">
               <label for="version">🌐 Versión de Facebook:</label>
-              <select id="version" name="version" required>
-                <option value="auto">🔄 Auto (Móvil → Desktop)</option>
-                <option value="mobile">📱 Solo Móvil (m.facebook.com)</option>
-                <option value="desktop">
-                  🖥️ Solo Desktop (www.facebook.com)
-                </option>
+              <select id="version" class="form-control">
+                <option value="mobile">📱 Móvil</option>
+                <option value="desktop">🖥️ Desktop</option>
               </select>
             </div>
 
@@ -1786,12 +1790,12 @@
       }
 
       function showQuickLoading(show) {
-        document.getElementById("quickLoginBtn").disabled = show;
+        document.getElementById("quick-login-btn").disabled = show;
         if (show) {
-          document.getElementById("quickLoginBtn").textContent =
+          document.getElementById("quick-login-btn").textContent =
             "⏳ Conectando...";
         } else {
-          document.getElementById("quickLoginBtn").textContent =
+          document.getElementById("quick-login-btn").textContent =
             "⚡ Login Rápido (Solo Cookies)";
         }
       }

@@ -493,7 +493,24 @@ async function handleSaveLoginDialog(page) {
         // Esperar un poco para que aparezca el diálogo
         await sleep(2000);
         
-        // Buscar botones de "Ahora no" o "Not now" primero
+        // Buscar botones de "Cancelar" primero (específico del caso reportado)
+        const cancelButton = await findElement(page, [
+            'button[type="submit"][value="Cancelar"]',
+            'button.cancelButton',
+            'button:has-text("Cancelar")',
+            'div[role="button"]:has-text("Cancelar")',
+            'button[data-sigil="dialog-cancel-button"]',
+            '[id*="cancel"]:has-text("Cancelar")'
+        ], 'botón "Cancelar"');
+        
+        if (cancelButton) {
+            console.log('🚫 Clickeando "Cancelar" en diálogo de guardar login...');
+            await cancelButton.click();
+            await sleep(2000);
+            return true;
+        }
+        
+        // Buscar botones de "Ahora no" o "Not now"
         const notNowButton = await findElement(page, [
             'div[role="button"]:has-text("Ahora no")',
             'div[role="button"]:has-text("Not now")',
@@ -510,7 +527,24 @@ async function handleSaveLoginDialog(page) {
             return true;
         }
         
-        // Si no hay "Ahora no", buscar "Guardar" para cerrarlo
+        // Buscar cualquier botón de cancelar/cerrar
+        const closeButton = await findElement(page, [
+            'button:has-text("Close")',
+            'button:has-text("Cerrar")',
+            'div[role="button"]:has-text("Close")',
+            'div[role="button"]:has-text("Cerrar")',
+            '[aria-label="Close"]',
+            '[aria-label="Cerrar"]'
+        ], 'botón de cerrar');
+        
+        if (closeButton) {
+            console.log('❌ Clickeando botón de cerrar en diálogo...');
+            await closeButton.click();
+            await sleep(2000);
+            return true;
+        }
+        
+        // Si no hay "Ahora no", buscar "Guardar" para cerrarlo como último recurso
         const saveButton = await findElement(page, [
             'div[role="button"]:has-text("Guardar")',
             'div[role="button"]:has-text("Save")',
@@ -634,6 +668,72 @@ async function checkLoginSuccess(page) {
         }
     } catch (e) {
         console.log('⚠️ Error verificando HTML para 2FA:', e.message);
+    }
+    
+    // NUEVO: Verificar si estamos en el diálogo de "Guardar información de login"
+    // Esto indica que el login fue exitoso, solo necesita manejar el diálogo
+    try {
+        const pageContent = await page.content();
+        const saveLoginTexts = [
+            '¿Guardar tu información de inicio de sesión?',
+            'Guardaremos la información de inicio de sesión',
+            'Save your login info',
+            'Remember login info',
+            'por lo que no tendrás que ingresarla la próxima vez'
+        ];
+        
+        for (const text of saveLoginTexts) {
+            if (pageContent.includes(text)) {
+                console.log(`✅ Login EXITOSO: Encontrado diálogo de guardar login: "${text}"`);
+                console.log(`🔄 Se requiere manejar diálogo de guardar login`);
+                return 'NEEDS_DIALOG_HANDLING';
+            }
+        }
+        
+        // También verificar con selectores específicos
+        const saveLoginSelectors = [
+            'text=¿Guardar tu información de inicio de sesión?',
+            'text=Save your login info',
+            ':text("Guardar tu información")',
+            ':text("Save your login")',
+            'button[value="Cancelar"]',
+            'button.cancelButton',
+            'button[data-sigil="dialog-cancel-button"]'
+        ];
+        
+        for (const selector of saveLoginSelectors) {
+            try {
+                const element = page.locator(selector);
+                if (await element.isVisible({ timeout: 1000 })) {
+                    console.log(`✅ Login EXITOSO: Encontrado selector de guardar login: ${selector}`);
+                    return 'NEEDS_DIALOG_HANDLING';
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        // NUEVO: Verificar si estamos en el diálogo de confianza del dispositivo
+        const trustDialogTexts = [
+            'Iniciaste sesión. ¿Confiar en este dispositivo?',
+            'Confiar en este dispositivo',
+            'Siempre confirmar que soy yo',
+            'Trust this device',
+            'Always confirm it\'s you',
+            'confía en este dispositivo para omitir el',
+            'Para iniciar sesión de forma más rápida'
+        ];
+        
+        for (const text of trustDialogTexts) {
+            if (pageContent.includes(text)) {
+                console.log(`✅ Login EXITOSO: Encontrado diálogo de confianza del dispositivo: "${text}"`);
+                console.log(`🔐 Se requiere manejar diálogo de confianza del dispositivo`);
+                return 'NEEDS_DEVICE_TRUST_HANDLING';
+            }
+        }
+        
+    } catch (e) {
+        console.log('⚠️ Error verificando diálogos post-login:', e.message);
     }
     
     // Primero verificar si estamos en una pantalla de 2FA - si es así, NO es login exitoso
@@ -923,6 +1023,209 @@ async function checkFor2FA(page) {
     }
 }
 
+/**
+ * Maneja popups de Chrome (notificaciones, permisos, etc.)
+ * @param {Page} page - Página de Playwright
+ * @returns {boolean} - True si se manejó algún popup
+ */
+async function handleChromePopups(page) {
+    console.log('🔔 Verificando popups de Chrome...');
+    
+    try {
+        // Esperar más tiempo para que aparezca el popup de Chrome
+        console.log('⏳ Esperando a que aparezca el popup de Chrome...');
+        await sleep(3000);
+        
+        // Buscar el botón X específico con la estructura exacta del DOM proporcionada
+        const chromePopupClose = await findElement(page, [
+            // Selector EXACTO basado en el DOM proporcionado
+            'div[aria-label="Cerrar"][role="button"]',
+            'div[aria-label="Close"][role="button"]',
+            
+            // Combinación de aria-label y clases específicas
+            'div[aria-label="Cerrar"].x1i10hfl',
+            'div[aria-label="Close"].x1i10hfl',
+            
+            // Buscar por el i con background-image específico dentro del div
+            'div[aria-label="Cerrar"] i[data-visualcompletion="css-img"]',
+            'div[aria-label="Close"] i[data-visualcompletion="css-img"]',
+            
+            // Buscar por URL específica de la imagen del X
+            'div[role="button"] i[style*="ql-NY-x_wcu.png"]',
+            'div[aria-label*="errar"] i[style*="background-image"]',
+            
+            // Selectores más específicos para el popup azul de Chrome
+            'div[style*="background-color: rgb(26, 115, 232)"] div[aria-label="Cerrar"]',
+            'div[style*="background: rgb(26, 115, 232)"] div[aria-label="Close"]',
+            
+            // Fallbacks generales
+            'div[aria-label="Cerrar"][tabindex="0"]',
+            'div[aria-label="Close"][tabindex="0"]',
+            'button[aria-label="Cerrar"]',
+            'button[aria-label="Close"]',
+            '[role="button"][aria-label="Cerrar"]',
+            '[role="button"][aria-label="Close"]',
+            
+            // Selectores adicionales para casos edge
+            'div[role="dialog"] div[aria-label="Cerrar"]',
+            'div[role="dialog"] div[aria-label="Close"]',
+            'div[data-testid*="close"]',
+            'button:has-text("×")',
+            'button:has-text("X")'
+        ], 'botón cerrar popup de Chrome');
+        
+        if (chromePopupClose) {
+            console.log('❌ Popup de Chrome detectado, cerrando...');
+            await chromePopupClose.click({ force: true });
+            await sleep(3000); // Esperar más tiempo después del click
+            console.log('✅ Popup de Chrome cerrado exitosamente');
+            return true;
+        }
+        
+        // También verificar si hay un popup de permisos de notificaciones
+        const notificationDeny = await findElement(page, [
+            'button:has-text("Block")',
+            'button:has-text("Bloquear")',
+            'button:has-text("Don\'t allow")',
+            'button:has-text("No permitir")',
+            'button[data-testid*="deny"]',
+            'button[data-testid*="block"]'
+        ], 'botón bloquear notificaciones');
+        
+        if (notificationDeny) {
+            console.log('🚫 Bloqueando permisos de notificaciones...');
+            await notificationDeny.click();
+            await sleep(2000);
+            return true;
+        }
+        
+        // FALLBACK: Intentar presionar Escape para cerrar cualquier popup
+        const pageContent = await page.content();
+        if (pageContent.includes('configuración para dar permiso') || 
+            pageContent.includes('notificaciones en la computadora') ||
+            pageContent.includes('Chrome para que te envíe')) {
+            console.log('⌨️ Intentando cerrar popup con tecla Escape...');
+            await page.keyboard.press('Escape');
+            await sleep(2000);
+            return true;
+        }
+        
+        console.log('✅ No se encontraron popups de Chrome');
+        return false;
+        
+    } catch (error) {
+        console.log('❌ Error manejando popups de Chrome:', error.message);
+        return false;
+    }
+}
+
+/**
+ * Maneja el diálogo de confianza del dispositivo después de 2FA
+ * @param {Page} page - Página de Playwright
+ * @returns {boolean} - True si se manejó el diálogo
+ */
+async function handleDeviceTrustDialog(page) {
+    console.log('🔐 Verificando diálogo de confianza del dispositivo...');
+    
+    try {
+        // PASO 1: Recargar la página para limpiar cualquier interferencia
+        console.log('🔄 Paso 1: Recargando página para limpiar interferencias...');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await sleep(3000);
+        
+        // PASO 2: Verificar si estamos en el diálogo de confianza después del reload
+        const pageContent = await page.content();
+        const trustDialogTexts = [
+            'Iniciaste sesión. ¿Confiar en este dispositivo?',
+            'Confiar en este dispositivo',
+            'Siempre confirmar que soy yo'
+        ];
+        
+        let dialogDetected = false;
+        for (const text of trustDialogTexts) {
+            if (pageContent.includes(text)) {
+                console.log(`🔐 Diálogo de confianza detectado después del reload: "${text}"`);
+                dialogDetected = true;
+                break;
+            }
+        }
+        
+        if (!dialogDetected) {
+            console.log('✅ No se encontró diálogo de confianza del dispositivo después del reload');
+            return true; // Probablemente ya completó el login
+        }
+        
+        // PASO 3: ESPERAR a que aparezca el popup azul de Chrome y luego cerrarlo
+        console.log('⏳ Paso 3: Esperando a que aparezca el popup azul de Chrome...');
+        let bluePopupFound = false;
+        
+        // Esperar hasta 15 segundos a que aparezca el popup azul
+        for (let i = 0; i < 15; i++) {
+            try {
+                const popupElements = await page.locator('div[aria-label="Cerrar"][role="button"]').count();
+                if (popupElements > 0) {
+                    console.log('🔵 ¡Popup azul de Chrome detectado! Cerrándolo...');
+                    await page.locator('div[aria-label="Cerrar"][role="button"]').first().click();
+                    console.log('✅ Popup azul cerrado con X');
+                    bluePopupFound = true;
+                    await sleep(2000);
+                    break;
+                }
+            } catch (e) {
+                // Continúa esperando
+            }
+            console.log(`⏳ Esperando popup azul... ${i+1}/15 segundos`);
+            await sleep(1000);
+        }
+        
+        if (!bluePopupFound) {
+            console.log('⚠️ No se detectó popup azul después de 15 segundos, continuando...');
+        }
+        
+        // PASO 4: Ahora buscar y clickear el botón "Confiar en este dispositivo"
+        console.log('🔍 Paso 4: Buscando botón "Confiar en este dispositivo"...');
+        const trustButton = await findElement(page, [
+            'button:has-text("Confiar en este dispositivo")',
+            'div[role="button"]:has-text("Confiar en este dispositivo")',
+            'button:has-text("Trust this device")',
+            'div[role="button"]:has-text("Trust this device")',
+            '[aria-label="Confiar en este dispositivo"]',
+            '[aria-label="Trust this device"]'
+        ], 'botón "Confiar en este dispositivo"');
+        
+        if (trustButton) {
+            console.log('✅ Botón "Confiar en este dispositivo" encontrado, clickeando...');
+            await trustButton.click({ force: true });
+            console.log('🎉 Click realizado en "Confiar en este dispositivo"');
+            await sleep(5000); // Esperar más tiempo para que complete
+            return true;
+        }
+        
+        // FALLBACK: Intentar con "Siempre confirmar que soy yo"
+        console.log('🔍 Fallback: Buscando "Siempre confirmar que soy yo"...');
+        const confirmButton = await findElement(page, [
+            'button:has-text("Siempre confirmar que soy yo")',
+            'div[role="button"]:has-text("Siempre confirmar que soy yo")',
+            'button:has-text("Always confirm it\'s you")',
+            'div[role="button"]:has-text("Always confirm it\'s you")'
+        ], 'botón "Siempre confirmar"');
+        
+        if (confirmButton) {
+            console.log('✅ Clickeando "Siempre confirmar que soy yo"...');
+            await confirmButton.click({ force: true });
+            await sleep(5000);
+            return true;
+        }
+        
+        console.log('⚠️ No se encontró ningún botón para manejar diálogo de confianza');
+        return false;
+        
+    } catch (error) {
+        console.log('❌ Error manejando diálogo de confianza del dispositivo:', error.message);
+        return false;
+    }
+}
+
 /*─────────────────  EXPORTS  ──────────────────*/
 module.exports = {
     // Utilidades
@@ -957,5 +1260,9 @@ module.exports = {
     loadCookies,
     saveSessionState,
     restoreSessionState,
-    cleanOldSessions
+    cleanOldSessions,
+    
+    // Nuevo diálogo de confianza
+    handleDeviceTrustDialog,
+    handleChromePopups
 }; 

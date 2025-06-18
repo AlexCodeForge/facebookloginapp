@@ -1,6 +1,4 @@
-@push ('name') 
-  
-@endpush# 🚀 Facebook Login Automation - Versión Avanzada con Gestión Completa
+# 🚀 Facebook Login Automation - Versión Avanzada con Gestión Completa
 
 ## 📋 Descripción
 
