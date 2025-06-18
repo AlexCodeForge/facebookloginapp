@@ -617,6 +617,25 @@ async function checkLoginSuccess(page) {
     const currentUrl = page.url();
     console.log(`🌐 URL actual: ${currentUrl}`);
     
+    // CRÍTICO: Verificar primero si el HTML contiene texto de 2FA
+    try {
+        const pageContent = await page.content();
+        const critical2FATexts = [
+            'Ve a tu app de autenticación',
+            'Ingresa el código de 6 dígitos para esta cuenta',
+            'desde la app de autenticación en dos pasos'
+        ];
+        
+        for (const text of critical2FATexts) {
+            if (pageContent.includes(text)) {
+                console.log(`❌ Login NO exitoso: Texto 2FA encontrado en HTML: "${text}"`);
+                return false;
+            }
+        }
+    } catch (e) {
+        console.log('⚠️ Error verificando HTML para 2FA:', e.message);
+    }
+    
     // Primero verificar si estamos en una pantalla de 2FA - si es así, NO es login exitoso
     // Usar la misma lógica completa que checkFor2FA
     const twoFAIndicators = [
@@ -738,7 +757,51 @@ async function checkFor2FA(page) {
         console.log(`🔍 URL actual: ${page.url()}`);
         console.log(`📄 Título de página: ${await page.title()}`);
         
-        // Buscar indicadores de 2FA (texto y elementos)
+        // DEBUG: Imprimir parte del contenido de la página para debug
+        try {
+            const pageContent = await page.content();
+            const contentSnippet = pageContent.substring(0, 500) + '...';
+            console.log(`📝 Snippet del contenido HTML: ${contentSnippet}`);
+            
+            // Buscar específicamente por textos relacionados con 2FA en todo el HTML
+            if (pageContent.includes('autenticación')) {
+                console.log('🔍 La palabra "autenticación" se encontró en el HTML');
+            }
+            if (pageContent.includes('código')) {
+                console.log('🔍 La palabra "código" se encontró en el HTML');
+            }
+        } catch (e) {
+            console.log('⚠️ Error obteniendo contenido de página:', e.message);
+        }
+        
+        // PRIMERA VERIFICACIÓN: Buscar el texto EXACTO de tu screenshot
+        const criticalTexts = [
+            'Ve a tu app de autenticación',
+            'Ingresa el código de 6 dígitos para esta cuenta'
+        ];
+        
+        for (const text of criticalTexts) {
+            try {
+                // Buscar en todo el HTML de la página
+                const pageContent = await page.content();
+                if (pageContent.includes(text)) {
+                    console.log(`🔐✅ TEXTO CRÍTICO ENCONTRADO EN HTML: "${text}"`);
+                    return true;
+                }
+                
+                // También buscar con locator
+                const element = page.locator(`text=${text}`);
+                const count = await element.count();
+                if (count > 0) {
+                    console.log(`🔐✅ TEXTO CRÍTICO ENCONTRADO CON LOCATOR: "${text}" (${count} elementos)`);
+                    return true;
+                }
+            } catch (e) {
+                console.log(`🔐❌ Error buscando texto crítico "${text}": ${e.message}`);
+            }
+        }
+        
+        // SEGUNDA VERIFICACIÓN: Buscar indicadores de 2FA (texto y elementos)
         const twoFAIndicators = [
             // Campos de código específicos
             'input[placeholder*="código" i]',

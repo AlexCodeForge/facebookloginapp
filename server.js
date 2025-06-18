@@ -335,8 +335,27 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
         // Manejar diálogo de guardar login si aparece
         await handleSaveLoginDialog(page);
         
-        // Verificar 2FA
-        if (await checkFor2FA(page)) {
+        // Esperar un poco más para que cargue completamente la respuesta
+        console.log('⏳ Esperando respuesta completa de Facebook...');
+        await sleep(2000);
+        
+        // Verificar 2FA MÚLTIPLES VECES para asegurar detección
+        console.log('🔐 Primera verificación de 2FA...');
+        let requires2FA = await checkFor2FA(page);
+        
+        if (!requires2FA) {
+            console.log('🔐 Segunda verificación de 2FA (esperando 1s)...');
+            await sleep(1000);
+            requires2FA = await checkFor2FA(page);
+        }
+        
+        if (!requires2FA) {
+            console.log('🔐 Tercera verificación de 2FA (esperando 2s)...');
+            await sleep(2000);
+            requires2FA = await checkFor2FA(page);
+        }
+        
+        if (requires2FA) {
             console.log(`🔐 Se requiere 2FA ${version} - esperando código del usuario...`);
             
             // Crear debug snapshot para 2FA
@@ -345,31 +364,21 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
                 console.log(`📸 Debug snapshot creado para 2FA detectado - ${version}`);
             }
             
-            // Crear una promesa que se resolverá cuando se envíe el código 2FA
-            return new Promise((resolve, reject) => {
-                // Guardar la sesión pendiente de 2FA
-                pending2FASessions.set(sessionId, {
-                    page,
-                    email,
-                    version,
-                    timestamp: new Date(),
-                    resolve,
-                    reject
-                });
-                
-                console.log(`💭 Sesión ${sessionId} esperando código 2FA...`);
-                
-                // No resolver inmediatamente - esperar a que el usuario envíe el código
-                // La promesa se resolverá en el endpoint /submit-2fa
-                
-                // Timeout opcional (30 minutos)
-                setTimeout(() => {
-                    if (pending2FASessions.has(sessionId)) {
-                        pending2FASessions.delete(sessionId);
-                        reject(new Error('Timeout esperando código 2FA (30 minutos)'));
-                    }
-                }, 30 * 60 * 1000);
+            // Guardar la sesión pendiente de 2FA
+            pending2FASessions.set(sessionId, {
+                page,
+                email,
+                version,
+                timestamp: new Date(),
+                resolve: null, // Se asignará más tarde
+                reject: null   // Se asignará más tarde
             });
+            
+            console.log(`💭 Sesión ${sessionId} esperando código 2FA... RETORNANDO ERROR PARA ACTIVAR FRONTEND`);
+            
+            // ⚠️ CAMBIO CRÍTICO: En lugar de retornar una Promise que cuelga,
+            // retornar un error que será capturado y convertido en requires2FA: true
+            throw new Error(`2FA_REQUIRED:${sessionId}:${version}`);
         }
         
         if (DEBUG_ENABLED) {
@@ -450,13 +459,30 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
     if (versionChoice === 'mobile') {
         console.log('🚀 Iniciando login solo móvil por elección del usuario...');
         try {
-            return await attemptLoginWithVersion(email, password, 'mobile', false);
+            const result = await attemptLoginWithVersion(email, password, 'mobile', false);
+            return result;
         } catch (error) {
-            // Si es un error de 2FA, significa que está esperando código
+            console.log(`📱 Error en login móvil: ${error.message}`);
+            
+            // Verificar si es un error específico de 2FA
+            if (error.message.startsWith('2FA_REQUIRED:')) {
+                const [, sessionId, version] = error.message.split(':');
+                console.log(`🔐 2FA detectado para móvil - sessionId: ${sessionId}, version: ${version}`);
+                return {
+                    success: false,
+                    sessionId: sessionId,
+                    message: `Se requiere código 2FA móvil. Usa el modal para ingresar el código.`,
+                    requires2FA: true,
+                    version: version
+                };
+            }
+            
+            // Si es un error de 2FA (fallback), significa que está esperando código
             if (pending2FASessions.size > 0) {
                 const sessionId = Array.from(pending2FASessions.entries())
                     .find(([id, data]) => data.email === email && data.version === 'mobile')?.[0];
                 if (sessionId) {
+                    console.log(`🔐 Returning 2FA required for mobile - sessionId: ${sessionId}`);
                     return {
                         success: false,
                         sessionId: sessionId,
@@ -475,7 +501,22 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
         try {
             return await attemptLoginWithVersion(email, password, 'desktop', false);
         } catch (error) {
-            // Si es un error de 2FA, significa que está esperando código
+            console.log(`🖥️ Error en login desktop: ${error.message}`);
+            
+            // Verificar si es un error específico de 2FA
+            if (error.message.startsWith('2FA_REQUIRED:')) {
+                const [, sessionId, version] = error.message.split(':');
+                console.log(`🔐 2FA detectado para desktop - sessionId: ${sessionId}, version: ${version}`);
+                return {
+                    success: false,
+                    sessionId: sessionId,
+                    message: `Se requiere código 2FA desktop. Usa el modal para ingresar el código.`,
+                    requires2FA: true,
+                    version: version
+                };
+            }
+            
+            // Si es un error de 2FA (fallback), significa que está esperando código
             if (pending2FASessions.size > 0) {
                 const sessionId = Array.from(pending2FASessions.entries())
                     .find(([id, data]) => data.email === email && data.version === 'desktop')?.[0];
@@ -503,7 +544,22 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
             return mobileResult;
         }
     } catch (error) {
-        // Si es un error de 2FA, significa que está esperando código
+        console.log(`📱 Error en auto-móvil: ${error.message}`);
+        
+        // Verificar si es un error específico de 2FA
+        if (error.message.startsWith('2FA_REQUIRED:')) {
+            const [, sessionId, version] = error.message.split(':');
+            console.log(`🔐 2FA detectado en auto-móvil - sessionId: ${sessionId}, version: ${version}`);
+            return {
+                success: false,
+                sessionId: sessionId,
+                message: `Se requiere código 2FA móvil. Usa el modal para ingresar el código.`,
+                requires2FA: true,
+                version: version
+            };
+        }
+        
+        // Si es un error de 2FA (fallback), significa que está esperando código
         if (pending2FASessions.size > 0) {
             const sessionId = Array.from(pending2FASessions.entries())
                 .find(([id, data]) => data.email === email && data.version === 'mobile')?.[0];
@@ -528,7 +584,22 @@ async function performFacebookLoginPersistent(email, password, versionChoice = '
             return desktopResult;
         }
     } catch (error) {
-        // Si es un error de 2FA, significa que está esperando código
+        console.log(`🖥️ Error en auto-desktop: ${error.message}`);
+        
+        // Verificar si es un error específico de 2FA
+        if (error.message.startsWith('2FA_REQUIRED:')) {
+            const [, sessionId, version] = error.message.split(':');
+            console.log(`🔐 2FA detectado en auto-desktop - sessionId: ${sessionId}, version: ${version}`);
+            return {
+                success: false,
+                sessionId: sessionId,
+                message: `Se requiere código 2FA desktop. Usa el modal para ingresar el código.`,
+                requires2FA: true,
+                version: version
+            };
+        }
+        
+        // Si es un error de 2FA (fallback), significa que está esperando código
         if (pending2FASessions.size > 0) {
             const sessionId = Array.from(pending2FASessions.entries())
                 .find(([id, data]) => data.email === email && data.version === 'desktop')?.[0];
