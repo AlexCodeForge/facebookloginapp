@@ -339,6 +339,12 @@ async function attemptLoginWithVersion(email, password, version, quickLogin = fa
         if (await checkFor2FA(page)) {
             console.log(`🔐 Se requiere 2FA ${version} - esperando código del usuario...`);
             
+            // Crear debug snapshot para 2FA
+            if (DEBUG_ENABLED) {
+                await createDebugSnapshot(page, `2fa-detected-${version}`, DEBUG_DIR);
+                console.log(`📸 Debug snapshot creado para 2FA detectado - ${version}`);
+            }
+            
             // Crear una promesa que se resolverá cuando se envíe el código 2FA
             return new Promise((resolve, reject) => {
                 // Guardar la sesión pendiente de 2FA
@@ -991,7 +997,7 @@ app.post('/submit-2fa', async (req, res) => {
         console.log(`🔐 Procesando código 2FA para ${email} (${version}): ${code} [${source}]`);
         
         try {
-            // Buscar campo de código 2FA
+            // Buscar campo de código 2FA con selectores mejorados
             const codeInputSelectors = [
                 'input[placeholder*="código" i]',
                 'input[placeholder*="code" i]',
@@ -999,8 +1005,11 @@ app.post('/submit-2fa', async (req, res) => {
                 'input[id="approvals_code"]',
                 'input[data-testid="2fa_code"]',
                 'input[inputmode="numeric"]',
+                'input[type="text"][maxlength="6"]', // Campo de 6 dígitos específico
+                'input[autocomplete="one-time-code"]', // Campo de código único
                 'input[type="text"]:not([name="email"]):not([name="pass"])',
                 'input[aria-label*="código" i]',
+                'input[aria-label*="Código" i]',
                 'input[aria-label*="code" i]'
             ];
             
@@ -1019,6 +1028,11 @@ app.post('/submit-2fa', async (req, res) => {
             }
             
             if (!codeInput) {
+                // Crear debug snapshot si no encuentra el campo
+                if (DEBUG_ENABLED) {
+                    await createDebugSnapshot(page, `2fa-field-not-found-${version}`, DEBUG_DIR);
+                    console.log(`📸 Debug snapshot creado - campo 2FA no encontrado - ${version}`);
+                }
                 throw new Error('No se pudo encontrar el campo de código 2FA');
             }
             

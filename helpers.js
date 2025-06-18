@@ -618,15 +618,48 @@ async function checkLoginSuccess(page) {
     console.log(`🌐 URL actual: ${currentUrl}`);
     
     // Primero verificar si estamos en una pantalla de 2FA - si es así, NO es login exitoso
+    // Usar la misma lógica completa que checkFor2FA
     const twoFAIndicators = [
+        // Campos de código específicos
+        'input[placeholder*="código" i]',
+        'input[placeholder*="code" i]',
+        'input[name="approvals_code"]',
+        'input[id="approvals_code"]',
+        'input[data-testid="2fa_code"]',
+        'input[inputmode="numeric"]',
+        'input[aria-label*="código" i]',
+        'input[aria-label*="Código" i]',
+        'input[type="text"][maxlength="6"]',
+        'input[autocomplete="one-time-code"]',
+        
+        // Textos específicos del screenshot - EXACTOS
         'text=Ve a tu app de autenticación',
-        'text=Ingresa el código de 6 dígitos',
+        'text=Ingresa el código de 6 dígitos para esta cuenta',
+        'text=desde la app de autenticación en dos pasos que configuraste',
         'text=app de autenticación',
+        'text=Duo Mobile',
+        'text=Google Authenticator',
+        'text=Confía en este dispositivo y omite este paso',
+        
+        // Textos parciales más flexibles
+        ':text("Ve a tu app")',
+        ':text("código de 6 dígitos")',
+        ':text("app de autenticación")',
+        ':text("Ingresa el código")',
+        ':text("dos pasos")',
+        ':text("autenticación en dos")',
+        
+        // Textos comunes
         'text=código de verificación',
         'text=authentication code',
         'text=two-factor',
-        'input[inputmode="numeric"]',
-        'input[aria-label*="código" i]'
+        'text=verificación',
+        'text=verification',
+        
+        // Elementos contenedores
+        'div:has-text("Ve a tu app de autenticación")',
+        'div:has-text("Ingresa el código de 6 dígitos")',
+        'form:has-text("código de 6 dígitos")'
     ];
     
     for (const indicator of twoFAIndicators) {
@@ -702,6 +735,8 @@ async function checkLoginSuccess(page) {
 async function checkFor2FA(page) {
     try {
         console.log('🔐 Verificando si se requiere 2FA...');
+        console.log(`🔍 URL actual: ${page.url()}`);
+        console.log(`📄 Título de página: ${await page.title()}`);
         
         // Buscar indicadores de 2FA (texto y elementos)
         const twoFAIndicators = [
@@ -714,12 +749,25 @@ async function checkFor2FA(page) {
             'input[inputmode="numeric"]',
             'input[aria-label*="código" i]',
             'input[aria-label*="Código" i]',
+            'input[type="text"][maxlength="6"]', // Campo de 6 dígitos típico
+            'input[autocomplete="one-time-code"]', // Campo de código único
             
-            // Textos específicos del screenshot
+            // Textos específicos del screenshot - EXACTOS
             'text=Ve a tu app de autenticación',
             'text=Ingresa el código de 6 dígitos para esta cuenta',
-            'text=desde la app de autenticación',
+            'text=desde la app de autenticación en dos pasos que configuraste',
             'text=app de autenticación',
+            'text=Duo Mobile',
+            'text=Google Authenticator',
+            'text=Confía en este dispositivo y omite este paso',
+            
+            // Textos parciales más flexibles
+            ':text("Ve a tu app")',
+            ':text("código de 6 dígitos")',
+            ':text("app de autenticación")',
+            ':text("Ingresa el código")',
+            ':text("dos pasos")',
+            ':text("autenticación en dos")',
             
             // Textos en español
             'text=código de',
@@ -748,37 +796,53 @@ async function checkFor2FA(page) {
             'form:has-text("código de verificación")',
             'form:has-text("authentication code")',
             
-            // Selectores de botones de 2FA
+            // Botones específicos del screenshot
             'button:has-text("Continuar")',
             'div[role="button"]:has-text("Continuar")',
             'button:has-text("Continue")',
-            'div[role="button"]:has-text("Continue")'
+            'div[role="button"]:has-text("Continue")',
+            'button:has-text("Usar otro método")',
+            'div[role="button"]:has-text("Usar otro método")',
+            
+            // Elementos contenedores específicos
+            'div:has-text("Ve a tu app de autenticación")',
+            'div:has-text("Ingresa el código de 6 dígitos")',
+            'form:has-text("código de 6 dígitos")'
         ];
         
-        for (const indicator of twoFAIndicators) {
+        console.log(`🔍 Probando ${twoFAIndicators.length} indicadores de 2FA...`);
+        for (let i = 0; i < twoFAIndicators.length; i++) {
+            const indicator = twoFAIndicators[i];
             try {
                 const element = page.locator(indicator);
                 if (await element.isVisible({ timeout: 2000 })) {
-                    console.log(`🔐 Indicador de 2FA encontrado: ${indicator}`);
-                    
-                    // Debug snapshot se puede crear desde el server.js si es necesario
+                    console.log(`🔐✅ Indicador de 2FA encontrado (${i+1}/${twoFAIndicators.length}): ${indicator}`);
                     console.log('💡 Sugerencia: Crear debug snapshot para 2FA desde server.js');
-                    
                     return true;
+                } else {
+                    console.log(`🔐❌ Indicador ${i+1}/${twoFAIndicators.length} no visible: ${indicator}`);
                 }
             } catch (e) {
+                console.log(`🔐⚠️ Error probando indicador ${i+1}/${twoFAIndicators.length}: ${indicator} - ${e.message}`);
                 continue;
             }
         }
         
         // Verificación adicional por URL
         const currentUrl = page.url();
+        console.log(`🔍 URL actual para verificar 2FA: ${currentUrl}`);
         const twoFAUrlPatterns = [
             'checkpoint',
             'two_factor',
             'approvals',
             'security',
-            'verify'
+            'verify',
+            'auth-app',
+            'authentication',
+            'confirm',
+            'mfa', // Multi-factor authentication
+            'otp', // One-time password
+            'factor'
         ];
         
         for (const pattern of twoFAUrlPatterns) {
